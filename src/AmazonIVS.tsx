@@ -8,7 +8,8 @@ import {
   TextCue,
   TextMetadataCue,
 } from 'amazon-ivs-player';
-import React, { ReactElement, useEffect, useState } from 'react';
+import * as ivs from 'amazon-ivs-player';
+import React, { useEffect, useRef, useState } from 'react';
 
 /**
  * These imports are loaded via the file-loader, and return the path to the asset.
@@ -21,34 +22,16 @@ import wasmBinaryPath from 'amazon-ivs-player/dist/assets/amazon-ivs-wasmworker.
 // @ts-ignore
 import wasmWorkerPath from 'amazon-ivs-player/dist/assets/amazon-ivs-wasmworker.min.js';
 
-export type AmazonIVSContextOptions = {
-  AmazonIVS: React.FC;
-  setStreamParam: (stream: string) => void;
+export type AmazonIVSOptions = {
+  stream: string;
 };
 
-export type AmazonIVSProviderOptions = {
-  children: React.ReactElement;
-};
-
-export const AmazonIVSContext = React.createContext(
-  {} as AmazonIVSContextOptions,
-);
-
-export const useAmazonIVS = () =>
-  React.useContext<AmazonIVSContextOptions>(AmazonIVSContext);
-
-const AmazonIVS: React.FC<HTMLVideoElement> = () => (
-  <video id="video-player" playsInline controls />
-);
-
-export const AmazonIVSProvider: React.FC<AmazonIVSProviderOptions> = (
-  options: AmazonIVSProviderOptions,
-) => {
+function AmazonIVS(options: AmazonIVSOptions) {
   const createAbsolutePath = (assetPath: string) =>
     new URL(assetPath, document.URL).toString();
 
+  const videoEl = useRef<HTMLVideoElement>(null);
   const [player, setPlayer] = useState({} as MediaPlayer);
-  const [AmazonIVS] = useState(<video playsInline controls />);
   const [streamParam, setStreamParam] = useState('');
   useEffect(() => {
     // refs: https://github.com/aws-samples/amazon-ivs-player-web-sample/blob/582c2981d4668491ba7a9d0258f06fee77dcf447/src/basic.ts#L52
@@ -88,38 +71,49 @@ export const AmazonIVSProvider: React.FC<AmazonIVSProviderOptions> = (
       );
     }
 
-    const destory = (): void => {
-      player.delete();
-    };
-
     const pl = create({
       wasmWorker: createAbsolutePath(wasmWorkerPath),
       wasmBinary: createAbsolutePath(wasmBinaryPath),
     });
-    pl.attachHTMLVideoElement(AmazonIVS as any);
-    attachListeners(pl);
+    console.log(pl);
+
     setPlayer(pl);
 
-    setStreamParam(
-      // refs: https://github.com/aws-samples/amazon-ivs-player-web-sample/blob/582c2981d4668491ba7a9d0258f06fee77dcf447/src/basic.ts#L85
-      // This is the "quiz" stream, which contains Timed Metadata. See the README for more sample streams.
-      'https://fcc3ddae59ed.us-west-2.playback.live-video.net/api/video/v1/us-west-2.893648527354.channel.xhP3ExfcX8ON.m3u8',
-    );
+    if (videoEl && videoEl.current) {
+      console.log('きてる？');
+      pl.attachHTMLVideoElement(videoEl.current);
+      attachListeners(pl);
+      setPlayer(pl);
 
-    player.setAutoplay(true);
-    player.load(streamParam);
-  }, [AmazonIVS, AmazonIVS.props, player, setStreamParam, streamParam]);
+      setStreamParam(
+        // refs: https://github.com/aws-samples/amazon-ivs-player-web-sample/blob/582c2981d4668491ba7a9d0258f06fee77dcf447/src/basic.ts#L85
+        // This is the "quiz" stream, which contains Timed Metadata. See the README for more sample streams.
+        'https://fcc3ddae59ed.us-west-2.playback.live-video.net/api/video/v1/us-west-2.893648527354.channel.xhP3ExfcX8ON.m3u8',
+      );
+
+      pl.setAutoplay(true);
+      pl.load(
+        'https://fcc3ddae59ed.us-west-2.playback.live-video.net/api/video/v1/us-west-2.893648527354.channel.XFAcAcypUxQm.m3u8',
+      );
+    }
+
+    // return (): void => {
+    //   if (player) {
+    //     player.delete();
+    //   }
+    // };
+  }, []);
 
   return (
-    <AmazonIVSContext.Provider
-      value={{
-        AmazonIVS: (props: any) => AmazonIVS,
-        setStreamParam,
-      }}
-    >
-      {options.children}
-    </AmazonIVSContext.Provider>
+    <video
+      id="video-player"
+      ref={videoEl}
+      playsInline
+      autoPlay
+      height={300}
+      controls
+    />
   );
-};
+}
 
-export default AmazonIVSProvider;
+export default AmazonIVS;
