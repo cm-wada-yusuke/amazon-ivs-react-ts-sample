@@ -1,0 +1,4 @@
+src/graphql/mutations.ts
+src/graphql/queries.ts
+src/graphql/schema.json
+src/graphql/generated.tsx
