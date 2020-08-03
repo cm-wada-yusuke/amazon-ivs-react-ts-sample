@@ -62,12 +62,14 @@
     "ts-pnp": "1.1.6",
     "typescript": "~3.7.2",
     "url-loader": "2.3.0",
+    "video.js": "^7.8.4",
     "webpack": "4.42.0",
     "webpack-dev-server": "3.10.3",
     "webpack-manifest-plugin": "2.2.0",
     "workbox-webpack-plugin": "4.3.1"
   },
   "devDependencies": {
+    "@types/video.js": "^7.3.10",
     "babel-eslint": "^10.1.0",
     "eslint": "^6.6.0",
     "eslint-config-prettier": "^6.11.0",

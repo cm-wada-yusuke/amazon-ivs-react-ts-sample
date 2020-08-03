@@ -1,15 +1,15 @@
 import {
-  create,
-  MediaPlayer,
-  PlayerError,
-  PlayerEventType,
-  PlayerState,
-  Quality,
-  TextCue,
-  TextMetadataCue,
+  registerIVSQualityPlugin,
+  registerIVSTech,
+  VideoJSEvents,
+  VideoJSIVSTech,
+  VideoJSQualityPlugin,
 } from 'amazon-ivs-player';
-import * as ivs from 'amazon-ivs-player';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
+import videojs from 'video.js';
+
+// Styles
+import 'video.js/dist/video-js.css';
 
 /**
  * These imports are loaded via the file-loader, and return the path to the asset.
@@ -31,82 +31,41 @@ function AmazonIVS(options: AmazonIVSOptions) {
     new URL(assetPath, document.URL).toString();
 
   const videoEl = useRef<HTMLVideoElement>(null);
-  const [player, setPlayer] = useState({} as MediaPlayer);
-  const [streamParam, setStreamParam] = useState('');
   useEffect(() => {
-    // refs: https://github.com/aws-samples/amazon-ivs-player-web-sample/blob/582c2981d4668491ba7a9d0258f06fee77dcf447/src/basic.ts#L52
-    function attachListeners(player: MediaPlayer): void {
-      for (const state of Object.values(PlayerState)) {
-        player.addEventListener(state, () => {
-          console.log(state);
-        });
-      }
-
-      player.addEventListener(PlayerEventType.INITIALIZED, () => {
-        console.log('INITIALIZED');
-      });
-
-      player.addEventListener(PlayerEventType.ERROR, (error: PlayerError) => {
-        console.error('ERROR', error);
-      });
-
-      player.addEventListener(
-        PlayerEventType.QUALITY_CHANGED,
-        (quality: Quality) => {
-          console.log('QUALITY_CHANGED', quality);
-        },
-      );
-
-      // This event fires when text cues are encountered, such as captions or subtitles
-      player.addEventListener(PlayerEventType.TEXT_CUE, (cue: TextCue) => {
-        console.log('TEXT_CUE', cue.startTime, cue.text);
-      });
-
-      // This event fires when embedded Timed Metadata is encountered
-      player.addEventListener(
-        PlayerEventType.TEXT_METADATA_CUE,
-        (cue: TextMetadataCue) => {
-          console.log('Timed metadata', cue.text);
-        },
-      );
-    }
-
-    const pl = create({
+    registerIVSTech(videojs, {
       wasmWorker: createAbsolutePath(wasmWorkerPath),
       wasmBinary: createAbsolutePath(wasmBinaryPath),
     });
-    console.log(pl);
+    // register the quality plugin
+    registerIVSQualityPlugin(videojs);
+    // create the player with the appropriate types. We're using @types/video.js VideoJsPlayer, and intersecting our Player and Quality Plugin interface
+    const player = videojs(
+      'videojs-player',
+      {
+        techOrder: ['AmazonIVS'],
+        autoplay: true,
+      },
+      function () {
+        console.warn('Player is ready to use');
+      },
+    ) as videojs.Player & VideoJSIVSTech & VideoJSQualityPlugin;
 
-    setPlayer(pl);
+    player.enableIVSQualityPlugin();
 
-    if (videoEl && videoEl.current) {
-      console.log('きてる？');
-      pl.attachHTMLVideoElement(videoEl.current);
-      attachListeners(pl);
-      setPlayer(pl);
-
-      setStreamParam(
-        // refs: https://github.com/aws-samples/amazon-ivs-player-web-sample/blob/582c2981d4668491ba7a9d0258f06fee77dcf447/src/basic.ts#L85
-        // This is the "quiz" stream, which contains Timed Metadata. See the README for more sample streams.
-        'https://fcc3ddae59ed.us-west-2.playback.live-video.net/api/video/v1/us-west-2.893648527354.channel.xhP3ExfcX8ON.m3u8',
-      );
-
-      pl.setAutoplay(true);
-      pl.load(
-        'https://fcc3ddae59ed.us-west-2.playback.live-video.net/api/video/v1/us-west-2.893648527354.channel.XFAcAcypUxQm.m3u8',
-      );
-    }
-
-    // return (): void => {
-    //   if (player) {
-    //     player.delete();
-    //   }
-    // };
+    // listen to IVS specific events
+    const events: VideoJSEvents = player.getIVSEvents();
+    const ivsPlayer = player.getIVSPlayer();
+    ivsPlayer.addEventListener(events.PlayerState.PLAYING, () => {
+      console.log('IVS Player is playing');
+    });
+    player.src(
+      'https://fcc3ddae59ed.us-west-2.playback.live-video.net/api/video/v1/us-west-2.893648527354.channel.DmumNckWFTqz.m3u8',
+    );
   }, []);
 
   return (
     <video
-      id="video-player"
+      id="videojs-player"
       ref={videoEl}
       playsInline
       autoPlay
